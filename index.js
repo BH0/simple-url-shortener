@@ -1,8 +1,6 @@
-const fs = require('fs');
-const puppeteer = require('puppeteer');
+let fs = require('fs');
 const express = require("express");
 const bodyParser = require("body-parser");
-const { get } = require('http');
 const app = express();
 
 app.use(express.urlencoded({ extended: false }));
@@ -11,66 +9,58 @@ app.use(bodyParser.json());
 app.use(express.json());
 
 app.get("/", function (req, res) {
-  fs.readFile('./videos.json', 'utf8' , (err, data) => {
+  fs.readFile('./shortened-urls.json', 'utf8' , (err, data) => {
     if (err) {
       console.error(err)
       return
     }
-    let videos = JSON.parse(data); 
-    res.send(videos);
-  })
+    let shortened_urls = JSON.parse(data); 
+    res.send(shortened_urls);
 });
 
-// /yt-name-link?id=9MwZGT0rySM
-app.get("/yt-name-link", async function (req, res) {
- let videoName = await getTitle(req.query.id).replace(" ", "-"); 
+// /shorten?url=http://google.com&id=google
+app.get("/shorten", function (req, res) {
+  let url = req.query.url;
+  let id = req.query.id;
   let obj = {
-    id: req.query.id,
-    name: videoName
-  }
-  fs.readFile('./videos.json', 'utf8' , (err, data) => {
-      if (err) {
-        console.error(err)
-        return
-      }
-      let videos = JSON.parse(data); 
-      videos.push(obj);
-        fs.writeFile('./videos.json', JSON.stringify(videos), function (err) {
-          if (err) return console.log(err);
-          res.send("URL shortened " + JSON.stringify(obj));
-        });
-    });    
+    url,
+    id
+  };
+  fs.readFile('./shortened-urls.json', 'utf8' , (err, data) => {
+    if (err) {
+      console.error(err)
+      return
+    }
+    console.log(data)
+    let shortened_urls = JSON.parse(data); 
+    shortened_urls.push(obj);
+      fs.writeFile('./shortened-urls.json', JSON.stringify(shortened_urls), function (err) {
+        if (err) return console.log(err);
+        res.send("URL shortened " + obj);
+      });
+  }); 
 });
 
-// /yt-named-link?name=top-20-rat-spots-in-olympus-season-7
-app.get("/yt-named-link", function (req, res) {
-  console.log(req.query.linkName); 
-    fs.readFile('./videos.json', 'utf8' , (err, data) => {
+// /shorten?id=google
+app.get("/shortened", function (req, res) {
+  console.log(req.query.id); 
+    fs.readFile('./shortened-urls.json', 'utf8' , (err, data) => {
       if (err) {
         console.error(err)
         return
       }
-      let videos = JSON.parse(data); 
-      videos.forEach((obj) => {
-        if (obj["name"] == req.query["name"]) {
-          console.log(obj.id); 
-          res.redirect("https://www.youtube.com/watch?v=" + obj.id);
+      let shortened_urls = JSON.parse(data); 
+      shortened_urls.forEach((obj) => {
+        if (obj.id == req.query.id) {
+          res.redirect(obj.url);
         }
       });   
     })
   }); 
+});
 
 /* 
 needs error handling & 404 
 */
 
 app.listen(3000);
-
-const getTitle = async (id) => {
-  const browser = await puppeteer.launch({headless: true});
-  const page = await browser.newPage(); 
-  await page.goto('https://www.youtube.com/watch?v='+id);
-  videoName = await page.title();   
-  await browser.close(); 
-  return videoName; 
-} 
